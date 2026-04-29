@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Интервалдар әдісі: Кездейсоқ фигуралар</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --primary-bg: #1a1a2e;
+            --secondary-bg: #ffffff;
+            --team1-color: #00d2ff;
+            --team2-color: #ff416c;
+            --wrong-color: #34495e;
+            --neutral-color: #bdc3c7;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--primary-bg);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .scoreboard {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            max-width: 100%;
+            padding: 8px 15px;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .team-panel {
+            flex: 1;
+            padding: 12px 20px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            border: 3px solid transparent;            transition: 0.3s;
+            background: rgba(255,255,255,0.08);
+        }
+
+        .team-panel.active { transform: translateY(-3px); }
+        #team1-panel.active { border-color: var(--team1-color); box-shadow: 0 0 20px var(--team1-color); }
+        #team2-panel.active { border-color: var(--team2-color); box-shadow: 0 0 20px var(--team2-color); }
+
+        .team-name { font-size: 1.4vw; font-weight: 600; margin-bottom: 4px; }
+        .team-score { font-size: 3.5vw; font-weight: 800; line-height: 1; }
+
+        .game-board {
+            background: var(--secondary-bg);
+            padding: 15px 20px;
+            width: 100%;
+            height: calc(100vh - 70px);
+            color: #333;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            justify-items: center;
+            align-items: center;
+            flex: 1;
+            padding: 10px;
+        }
+
+        .shape-box {
+            width: 95%;
+            aspect-ratio: 1;
+            max-width: 180px;
+            max-height: 180px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+            transition: 0.25s;
+        }
+
+        .shape-box:hover { transform: scale(1.08); }
+        
+        .shape-element {
+            width: 100%;
+            height: 100%;
+            background-color: var(--neutral-color);            transition: 0.4s;
+            position: absolute;
+        }
+
+        .label {
+            position: relative;
+            z-index: 5;
+            color: white;
+            font-weight: 800;
+            font-size: 2.8vw;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+            pointer-events: none;
+        }
+
+        /* Геометриялық пішіндер */
+        .circle { border-radius: 50%; }
+        .square { border-radius: 12px; }
+        .pentagon { clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); }
+
+        /* Бояулар */
+        .claimed-1 .shape-element { background-color: var(--team1-color) !important; }
+        .claimed-2 .shape-element { background-color: var(--team2-color) !important; }
+        .claimed-wrong .shape-element { background-color: var(--wrong-color) !important; opacity: 0.7; }
+        .used { cursor: not-allowed; opacity: 0.85; }
+
+        /* Тест стилі */
+        #quiz-overlay {
+            display: none;
+            text-align: center;
+            animation: slideIn 0.35s ease-out;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 10px;
+        }
+
+        @keyframes slideIn { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        #quiz-header { 
+            font-size: 2vw; 
+            font-weight: 700; 
+            color: #555; 
+            margin-bottom: 15px;
+            background: #f1f3f5;
+            padding: 8px 20px;
+            border-radius: 8px;
+        }
+        .math-box { 
+            font-size: 4.5vw; 
+            margin: 10px 0 25px; 
+            font-weight: 800; 
+            color: #1a1a2e;
+            line-height: 1.3;
+            text-align: center;
+        }
+        
+        .opt-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 12px; 
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .opt-btn {
+            padding: 2.2vw 1.5vw;
+            min-height: 12vh;
+            border: 3px solid #ccc;
+            border-radius: 12px;
+            background: #f8f9fa;
+            cursor: pointer;
+            font-size: 2.3vw;
+            font-weight: 600;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            line-height: 1.2;
+        }
+
+        .opt-btn:hover { background: #e9ecef; transform: translateY(-2px); }
+        .opt-btn:active { transform: translateY(0); }
+        .opt-btn.correct { background: #2ecc71 !important; color: white !important; border-color: #27ae60 !important; }
+        .opt-btn.wrong { background: #e74c3c !important; color: white !important; border-color: #c0392b !important; }
+        .opt-btn:disabled { cursor: not-allowed; opacity: 0.9; }
+
+        .control-panel { 
+            margin-top: 20px; 
+            width: 100%;
+            display: flex;
+            justify-content: center;
+        }
+
+        .btn-next { 
+            background: var(--primary-bg);             color: white; 
+            padding: 15px 50px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 2vw;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+        
+        .btn-next:hover { background: #2a2a4e; transform: translateY(-2px); }
+
+        /* Адаптивтілік - үлкен экрандар үшін */
+        @media (min-width: 1920px) {
+            .team-name { font-size: 22px; }
+            .team-score { font-size: 55px; }
+            .label { font-size: 42px; }
+            #quiz-header { font-size: 28px; }
+            .math-box { font-size: 65px; }
+            .opt-btn { font-size: 32px; padding: 25px 20px; }
+            .btn-next { font-size: 28px; padding: 18px 60px; }
+        }
+
+        /* Кіші экрандар үшін (планшет) */
+        @media (max-width: 1024px) {
+            .grid { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+            .shape-box { max-width: 140px; }
+            .label { font-size: 24px; }
+            .team-score { font-size: 40px; }
+            .math-box { font-size: 32px; }
+            .opt-btn { font-size: 18px; min-height: 80px; }
+        }
+
+        /* Өте кіші экрандар */
+        @media (max-width: 600px) {
+            .grid { grid-template-columns: repeat(2, 1fr); }
+            .opt-grid { grid-template-columns: 1fr; }
+            .team-score { font-size: 32px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scoreboard">
+        <div id="team1-panel" class="team-panel active" onclick="switchTeam(1)">
+            <div class="team-name" style="color: var(--team1-color)">🔷 АЛЬФА ТОБЫ</div>
+            <div id="score1" class="team-score">0</div>
+        </div>
+        <div id="team2-panel" class="team-panel" onclick="switchTeam(2)">
+            <div class="team-name" style="color: var(--team2-color)">🔶 БЕТА ТОБЫ</div>            <div id="score2" class="team-score">0</div>
+        </div>
+    </div>
+
+    <div class="game-board">
+        <div id="grid-area" class="grid"></div>
+
+        <div id="quiz-overlay">
+            <div id="quiz-header"></div>
+            <div id="quiz-question" class="math-box"></div>
+            <div id="quiz-options" class="opt-grid"></div>
+            <div class="control-panel">
+                <button id="btn-close" class="btn-next" onclick="closeQuiz()">➡ Келесі сұрақ</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentTeam = 1;
+        let scores = { 1: 0, 2: 0 };
+        let activeShape = null;
+
+        const allTasks = [
+            { id: 1, lv: 'A', pts: 10, q: "(x-2)(x+5) > 0", a: "(-∞; -5) ∪ (2; +∞)", opts: ["(-5; 2)", "(-∞; -5) ∪ (2; +∞)", "[-5; 2]", "(2; +∞)"] },
+            { id: 2, lv: 'A', pts: 10, q: "(x+3)(x-1) ≤ 0", a: "[-3; 1]", opts: ["[-3; 1]", "(-3; 1)", "(-∞; -3] ∪ [1; +∞)", "[1; 3]"] },
+            { id: 3, lv: 'A', pts: 10, q: "x(x-8) < 0", a: "(0; 8)", opts: ["(-8; 0)", "(0; 8)", "[0; 8]", "(-∞; 0)"] },
+            { id: 4, lv: 'A', pts: 10, q: "(x+10)(x+2) ≥ 0", a: "(-∞; -10] ∪ [-2; +∞)", opts: ["[-10; -2]", "(-∞; -10] ∪ [-2; +∞)", "[-2; 10]", "(-∞; -2]"] },
+            { id: 5, lv: 'B', pts: 20, q: "x / (x+4) < 0", a: "(-4; 0)", opts: ["(0; 4)", "(-4; 0)", "[-4; 0]", "(-∞; -4)"] },
+            { id: 6, lv: 'B', pts: 20, q: "(x-3)/(x+5) ≥ 0", a: "(-∞; -5) ∪ [3; +∞)", opts: ["(-5; 3]", "(-∞; -5) ∪ [3; +∞)", "[-5; 3]", "[3; +∞)"] },
+            { id: 7, lv: 'B', pts: 20, q: "(6-x)/(x+2) > 0", a: "(-2; 6)", opts: ["(-6; 2)", "(-2; 6)", "[-2; 6]", "(-∞; -2)"] },
+            { id: 8, lv: 'B', pts: 20, q: "x / (x-7) ≤ 0", a: "[0; 7)", opts: ["(0; 7)", "[0; 7)", "[0; 7]", "(-∞; 0]"] },
+            { id: 9, lv: 'C', pts: 30, q: "(x²-1)/(x-5) < 0", a: "(-∞; -1) ∪ (1; 5)", opts: ["(-1; 1) ∪ (5; +∞)", "(-∞; -1) ∪ (1; 5)", "(-1; 5)", "(1; 5)"] },
+            { id: 10, lv: 'C', pts: 30, q: "(x-4)²(x+1) > 0", a: "(-1; 4) ∪ (4; +∞)", opts: ["(-1; +∞)", "(-1; 4) ∪ (4; +∞)", "(-∞; -1)", "[-1; 4]"] },
+            { id: 11, lv: 'C', pts: 30, q: "x²+3x-10 ≤ 0", a: "[-5; 2]", opts: ["[-2; 5]", "[-5; 2]", "(-5; 2)", "[0; 2]"] },
+            { id: 12, lv: 'C', pts: 30, q: "2/(x-1) ≥ 1", a: "(1; 3]", opts: ["[1; 3]", "(1; 3]", "(-∞; 3]", "(1; +∞)"] }
+        ];
+
+        function switchTeam(n) {
+            if(document.getElementById('quiz-overlay').style.display === 'block' && 
+               document.getElementById('quiz-overlay').style.display !== 'none') return;
+            currentTeam = n;
+            document.getElementById('team1-panel').classList.toggle('active', n===1);
+            document.getElementById('team2-panel').classList.toggle('active', n===2);
+        }
+
+        function createBoard() {
+            const grid = document.getElementById('grid-area');
+            const shapes = ['circle', 'square', 'pentagon'];
+            
+            allTasks.forEach(task => {                const randomShape = shapes[Math.floor(Math.random() * shapes.length)];
+                
+                const box = document.createElement('div');
+                box.className = 'shape-box';
+                box.innerHTML = `
+                    <div class="shape-element ${randomShape}"></div>
+                    <div class="label">${task.lv}${task.id}</div>
+                `;
+                box.onclick = () => startQuiz(task, box);
+                grid.appendChild(box);
+            });
+        }
+
+        function startQuiz(task, element) {
+            if(element.classList.contains('used')) return;
+            activeShape = element;
+
+            document.getElementById('grid-area').style.display = 'none';
+            const overlay = document.getElementById('quiz-overlay');
+            overlay.style.display = 'flex';
+
+            const teamName = currentTeam === 1 ? 'АЛЬФА' : 'БЕТА';
+            document.getElementById('quiz-header').innerText = `🎯 ${teamName} ТОБЫ | Деңгей: ${task.lv} | ${task.pts} балл`;
+            document.getElementById('quiz-question').innerText = task.q;
+
+            const optsDiv = document.getElementById('quiz-options');
+            optsDiv.innerHTML = '';
+            document.getElementById('btn-close').style.display = 'none';
+
+            task.opts.forEach(o => {
+                const btn = document.createElement('button');
+                btn.className = 'opt-btn';
+                btn.innerText = o;
+                btn.onclick = () => checkResult(btn, o, task.a, task.pts);
+                optsDiv.appendChild(btn);
+            });
+        }
+
+        function checkResult(btn, selected, correct, pts) {
+            const buttons = document.querySelectorAll('.opt-btn');
+            buttons.forEach(b => b.disabled = true);
+
+            if(selected === correct) {
+                btn.classList.add('correct');
+                scores[currentTeam] += pts;
+                document.getElementById(`score${currentTeam}`).innerText = scores[currentTeam];
+                activeShape.classList.add(`claimed-${currentTeam}`);
+            } else {
+                btn.classList.add('wrong');
+                buttons.forEach(b => { if(b.innerText === correct) b.classList.add('correct'); });                activeShape.classList.add('claimed-wrong');
+            }
+
+            activeShape.classList.add('used');
+            document.getElementById('btn-close').style.display = 'inline-block';
+        }
+
+        function closeQuiz() {
+            document.getElementById('quiz-overlay').style.display = 'none';
+            document.getElementById('grid-area').style.display = 'grid';
+            switchTeam(currentTeam === 1 ? 2 : 1);
+        }
+
+        // Толық экран режимін қосу (F туышбасы)
+        document.addEventListener('keydown', (e) => {
+            if(e.key === 'f' || e.key === 'F') {
+                if(!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+        });
+
+        // Бет жүктелгенде
+        window.addEventListener('load', () => {
+            createBoard();
+            // Автоматты түрде масштабтау
+            setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
+        });
+
+        // Терезе өлшемі өзгергенде
+        window.addEventListener('resize', () => {
+            // Фонды толық экранға сәйкестендіру
+            document.body.style.height = window.innerHeight + 'px';
+        });
+    </script>
+</body>
+</html>
